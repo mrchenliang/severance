@@ -1,7 +1,7 @@
 "use client"
 
-import { useState } from "react"
-import { useRouter } from "next/navigation"
+import { useState, useEffect } from "react"
+import { useRouter, useSearchParams } from "next/navigation"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -64,28 +64,57 @@ const JOB_POSITIONS: { value: JobPosition; label: string }[] = [
 
 export function SeveranceCalculator() {
   const router = useRouter()
-  const [salaryInputType, setSalaryInputType] = useState<"annual" | "hourly">("annual")
-
-  const [formData, setFormData] = useState<Partial<CalculatorInput>>({
-    province: "ON",
-    yearsOfService: 0,
-    monthsOfService: 0,
-    ageRange: "30-40",
-    jobPosition: "professional",
-    annualSalary: undefined,
-    isUnionized: false,
-    currentOffer: undefined,
-    employerPayroll: undefined,
-  })
-
-  const [companyName, setCompanyName] = useState<string>("")
-  const [companyRepresentative, setCompanyRepresentative] = useState<string>("")
-
-  const [errors, setErrors] = useState<Record<string, string>>({})
-  const [touched, setTouched] = useState<Record<string, boolean>>({})
+  const searchParams = useSearchParams()
 
   // Convert hourly rate to annual salary (assuming 40 hours/week × 52 weeks = 2080 hours/year)
   const HOURS_PER_YEAR = 2080
+
+  // Initialize from URL params if available
+  const initialSalaryInputType = searchParams.get("salaryType") === "hourly" ? "hourly" : "annual"
+  const [salaryInputType, setSalaryInputType] = useState<"annual" | "hourly">(initialSalaryInputType)
+
+  const [formData, setFormData] = useState<Partial<CalculatorInput>>(() => {
+    const province = (searchParams.get("province") || "ON") as Province
+    const yearsOfService = parseInt(searchParams.get("years") || "0")
+    const monthsOfService = parseInt(searchParams.get("months") || "0")
+    const ageRange = (searchParams.get("age") || "30-40") as AgeRange
+    const jobPosition = (searchParams.get("position") || "professional") as JobPosition
+    const salaryParam = searchParams.get("salary")
+    const isUnionized = searchParams.get("unionized") === "true"
+    const currentOffer = searchParams.get("offer") ? parseFloat(searchParams.get("offer")!) : undefined
+    const employerPayroll = searchParams.get("payroll") ? parseFloat(searchParams.get("payroll")!) : undefined
+
+    // Handle salary conversion based on input type
+    let annualSalary: number | undefined = undefined
+    if (salaryParam) {
+      const salaryValue = parseFloat(salaryParam)
+      if (initialSalaryInputType === "hourly") {
+        // If URL has hourly, convert back to hourly rate for display
+        annualSalary = salaryValue / HOURS_PER_YEAR
+      } else {
+        // If URL has annual, use as is
+        annualSalary = salaryValue
+      }
+    }
+
+    return {
+      province,
+      yearsOfService,
+      monthsOfService,
+      ageRange,
+      jobPosition,
+      annualSalary,
+      isUnionized,
+      currentOffer,
+      employerPayroll,
+    }
+  })
+
+  const [companyName, setCompanyName] = useState<string>(searchParams.get("companyName") || "")
+  const [companyRepresentative, setCompanyRepresentative] = useState<string>(searchParams.get("companyRep") || "")
+
+  const [errors, setErrors] = useState<Record<string, string>>({})
+  const [touched, setTouched] = useState<Record<string, boolean>>({})
 
   const validateField = (name: string, value: any): string => {
     switch (name) {

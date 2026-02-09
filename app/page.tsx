@@ -1,4 +1,9 @@
+import { Suspense } from "react"
 import { SeveranceCalculator } from "@/components/severance-calculator"
+
+function CalculatorWrapper() {
+  return <SeveranceCalculator />
+}
 
 export default function Home() {
   return (
@@ -12,7 +17,9 @@ export default function Home() {
             Calculate your severance pay entitlements based on common law across all Canadian provinces
           </p>
         </div>
-        <SeveranceCalculator />
+        <Suspense fallback={<div>Loading...</div>}>
+          <CalculatorWrapper />
+        </Suspense>
       </div>
     </main>
   )

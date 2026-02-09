@@ -152,8 +152,7 @@ ${yourName || "[Your Name]"}`
   }
 
   return (
-    <div className="container mx-auto max-w-4xl py-8 px-4">
-      <Card>
+    <Card>
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
             <FileText className="h-5 w-5" />
@@ -204,7 +203,7 @@ ${yourName || "[Your Name]"}`
               <Label htmlFor="demand-tone">Tone of Voice</Label>
               <Select value={tone} onValueChange={(value: "professional" | "firm" | "concise" | "formal" | "collaborative") => setTone(value)}>
                 <SelectTrigger id="demand-tone">
-                  <SelectValue placeholder="Select tone" />
+                  <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="professional">Professional - Balanced and Respectful</SelectItem>
@@ -295,6 +294,5 @@ ${yourName || "[Your Name]"}`
           </div>
         </CardContent>
       </Card>
-    </div>
   )
 }

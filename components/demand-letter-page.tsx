@@ -4,7 +4,7 @@ import { useSearchParams, useRouter } from "next/navigation"
 import { useState } from "react"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
-import { ArrowLeft, Edit, Calculator } from "lucide-react"
+import { ArrowLeft, Edit } from "lucide-react"
 import { calculateSeverance } from "@/lib/calculations"
 import type { CalculatorInput, Province, AgeRange, JobPosition } from "@/lib/types"
 import { DemandLetter } from "./demand-letter"
@@ -74,21 +74,6 @@ export function DemandLetterPage() {
   }
 
   // Build URL params for navigation
-  const buildResultsUrl = () => {
-    const params = new URLSearchParams()
-    params.set("province", province)
-    params.set("years", String(yearsOfService))
-    params.set("months", String(monthsOfService))
-    params.set("age", ageRange)
-    params.set("position", jobPosition)
-    if (annualSalary) params.set("salary", String(annualSalary))
-    if (salaryInputType === "hourly") params.set("salaryType", "hourly")
-    if (currentOffer) params.set("offer", String(currentOffer))
-    if (companyName) params.set("companyName", companyName)
-    if (companyRepresentative) params.set("companyRep", companyRepresentative)
-    return `/results?${params.toString()}`
-  }
-
   const buildCalculatorUrl = () => {
     const params = new URLSearchParams()
     params.set("province", province)
@@ -126,81 +111,75 @@ export function DemandLetterPage() {
           </div>
         </div>
 
-        {/* Edit Inputs Section */}
-        <Card className="mb-6">
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <Edit className="h-5 w-5" />
-              Edit Your Inputs
-            </CardTitle>
-            <CardDescription>
-              Need to change your information? Go back to edit your calculator inputs.
-            </CardDescription>
-          </CardHeader>
-          <CardContent>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
-              <div className="space-y-1">
-                <p className="text-sm font-medium">Province:</p>
-                <p className="text-sm text-muted-foreground">{province}</p>
+        <div className="container mx-auto max-w-4xl">
+          {/* Edit Inputs Section */}
+          <Card className="mb-6">
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <Edit className="h-5 w-5" />
+                Edit Your Inputs
+              </CardTitle>
+              <CardDescription>
+                Need to change your information? Go back to edit your calculator inputs.
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
+                <div className="space-y-1">
+                  <p className="text-sm font-medium">Province:</p>
+                  <p className="text-sm text-muted-foreground">{province}</p>
+                </div>
+                <div className="space-y-1">
+                  <p className="text-sm font-medium">Years of Service:</p>
+                  <p className="text-sm text-muted-foreground">
+                    {yearsOfService} {yearsOfService === 1 ? "year" : "years"}
+                    {monthsOfService > 0 && `, ${monthsOfService} ${monthsOfService === 1 ? "month" : "months"}`}
+                  </p>
+                </div>
+                <div className="space-y-1">
+                  <p className="text-sm font-medium">Age Range:</p>
+                  <p className="text-sm text-muted-foreground">{ageRange}</p>
+                </div>
+                <div className="space-y-1">
+                  <p className="text-sm font-medium">Job Position:</p>
+                  <p className="text-sm text-muted-foreground capitalize">{jobPosition}</p>
+                </div>
+                <div className="space-y-1">
+                  <p className="text-sm font-medium">Annual Salary:</p>
+                  <p className="text-sm text-muted-foreground">
+                    {annualSalaryForCalc ? formatCurrency(annualSalaryForCalc) : "Not provided"}
+                  </p>
+                </div>
+                <div className="space-y-1">
+                  <p className="text-sm font-medium">Current Offer:</p>
+                  <p className="text-sm text-muted-foreground">
+                    {currentOffer ? formatCurrency(currentOffer) : "Not provided"}
+                  </p>
+                </div>
               </div>
-              <div className="space-y-1">
-                <p className="text-sm font-medium">Years of Service:</p>
-                <p className="text-sm text-muted-foreground">
-                  {yearsOfService} {yearsOfService === 1 ? "year" : "years"}
-                  {monthsOfService > 0 && `, ${monthsOfService} ${monthsOfService === 1 ? "month" : "months"}`}
-                </p>
+              <div className="flex justify-center">
+                <Button
+                  variant="outline"
+                  onClick={() => router.push(buildCalculatorUrl())}
+                  className="w-full sm:w-auto"
+                >
+                  <Edit className="h-4 w-4 mr-2" />
+                  Edit
+                </Button>
               </div>
-              <div className="space-y-1">
-                <p className="text-sm font-medium">Age Range:</p>
-                <p className="text-sm text-muted-foreground">{ageRange}</p>
-              </div>
-              <div className="space-y-1">
-                <p className="text-sm font-medium">Job Position:</p>
-                <p className="text-sm text-muted-foreground capitalize">{jobPosition}</p>
-              </div>
-              <div className="space-y-1">
-                <p className="text-sm font-medium">Annual Salary:</p>
-                <p className="text-sm text-muted-foreground">
-                  {annualSalaryForCalc ? formatCurrency(annualSalaryForCalc) : "Not provided"}
-                </p>
-              </div>
-              <div className="space-y-1">
-                <p className="text-sm font-medium">Current Offer:</p>
-                <p className="text-sm text-muted-foreground">
-                  {currentOffer ? formatCurrency(currentOffer) : "Not provided"}
-                </p>
-              </div>
-            </div>
-            <div className="flex flex-col sm:flex-row gap-3">
-              <Button
-                variant="outline"
-                onClick={() => router.push(buildResultsUrl())}
-                className="flex-1"
-              >
-                <Calculator className="h-4 w-4 mr-2" />
-                Edit on Results Page
-              </Button>
-              <Button
-                variant="outline"
-                onClick={() => router.push(buildCalculatorUrl())}
-                className="flex-1"
-              >
-                <Edit className="h-4 w-4 mr-2" />
-                Edit from Beginning
-              </Button>
-            </div>
-          </CardContent>
-        </Card>
+            </CardContent>
+          </Card>
 
-        <DemandLetter
-          results={results}
-          currentOffer={currentOffer}
-          province={province}
-          yearsOfService={yearsOfService}
-          monthsOfService={monthsOfService}
-          companyName={companyName}
-          companyRepresentative={companyRepresentative}
-        />
+          <DemandLetter
+            results={results}
+            currentOffer={currentOffer}
+            province={province}
+            yearsOfService={yearsOfService}
+            monthsOfService={monthsOfService}
+            companyName={companyName}
+            companyRepresentative={companyRepresentative}
+          />
+        </div>
       </div>
     </div>
   )
