@@ -90,7 +90,7 @@ It is strongly recommended that you consult with an employment lawyer for advice
 ## Project Structure
 
 ```
-severance-calculator/
+severance/
 ├── app/
 │   ├── layout.tsx          # Root layout
 │   ├── page.tsx            # Home page
