@@ -1,6 +1,7 @@
 "use client"
 
 import { useState, useEffect } from "react"
+import { useRouter, useSearchParams } from "next/navigation"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -18,6 +19,7 @@ interface DemandLetterProps {
   monthsOfService?: number
   companyName?: string
   companyRepresentative?: string
+  yourName?: string
 }
 
 function formatCurrency(amount: number): string {
@@ -38,16 +40,36 @@ export function DemandLetter({
   monthsOfService = 0,
   companyName = "",
   companyRepresentative = "",
+  yourName: initialYourName = "",
 }: DemandLetterProps) {
+  const router = useRouter()
+  const searchParams = useSearchParams()
+  
   const [localCompanyName, setLocalCompanyName] = useState<string>(companyName)
   const [localCompanyRepresentative, setLocalCompanyRepresentative] = useState<string>(companyRepresentative)
-  const [yourName, setYourName] = useState<string>("")
+  const [yourName, setYourName] = useState<string>(initialYourName)
   const [editedLetter, setEditedLetter] = useState<string>("")
   const [hasManualEdit, setHasManualEdit] = useState<boolean>(false)
   const [tone, setTone] = useState<"professional" | "firm" | "concise" | "formal" | "collaborative">("professional")
 
   const { statutoryMinimum, statutorySeverance, commonLawRange, recommendedRange } = results
   const totalStatutory = statutoryMinimum.amount + (statutorySeverance?.amount || 0)
+
+  // Update URL when yourName changes
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search)
+    const currentYourName = params.get("yourName") || ""
+    if (yourName !== currentYourName) {
+      if (yourName) {
+        params.set("yourName", yourName)
+      } else {
+        params.delete("yourName")
+      }
+      const newUrl = `/demand-letter?${params.toString()}`
+      router.replace(newUrl, { scroll: false })
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [yourName]) // Only depend on yourName to avoid loops
 
   // Auto-update letter when inputs change, unless user has manually edited it
   useEffect(() => {

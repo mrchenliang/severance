@@ -144,23 +144,31 @@ export function analyzeLawyerCosts(
   
   // Determine recommended option
   // Priority: 1) Highest net benefit, 2) Lowest risk (contingency preferred if similar benefit)
+  // Exclude consultation from recommendations as it's not effective for outcomes
   let recommended = options[0]
   
   if (hasValue) {
-    // Sort by net benefit (highest first), but prefer contingency if similar
-    const sortedOptions = [...options].sort((a, b) => {
-      const netBenefitDiff = (b.netBenefit || 0) - (a.netBenefit || 0)
-      
-      // If net benefits are similar (within 10%), prefer contingency
-      if (Math.abs(netBenefitDiff) < (potentialGap * 0.1)) {
-        if (a.type === "contingency" && b.type !== "contingency") return -1
-        if (b.type === "contingency" && a.type !== "contingency") return 1
-      }
-      
-      return netBenefitDiff
-    })
+    // Filter out consultation options and sort by net benefit (highest first), but prefer contingency if similar
+    const actionableOptions = options.filter(opt => opt.type !== "consultation")
     
-    recommended = sortedOptions[0]
+    if (actionableOptions.length > 0) {
+      const sortedOptions = [...actionableOptions].sort((a, b) => {
+        const netBenefitDiff = (b.netBenefit || 0) - (a.netBenefit || 0)
+        
+        // If net benefits are similar (within 10%), prefer contingency
+        if (Math.abs(netBenefitDiff) < (potentialGap * 0.1)) {
+          if (a.type === "contingency" && b.type !== "contingency") return -1
+          if (b.type === "contingency" && a.type !== "contingency") return 1
+        }
+        
+        return netBenefitDiff
+      })
+      
+      recommended = sortedOptions[0]
+    } else {
+      // Fallback to consultation only if no other options available (shouldn't happen)
+      recommended = options[0]
+    }
   } else {
     // If no gap, consultation only makes sense
     recommended = options[0]

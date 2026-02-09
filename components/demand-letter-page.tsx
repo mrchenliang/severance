@@ -35,6 +35,7 @@ export function DemandLetterPage() {
   const currentOffer = searchParams.get("offer") ? parseFloat(searchParams.get("offer")!) : undefined
   const companyName = searchParams.get("companyName") || ""
   const companyRepresentative = searchParams.get("companyRep") || ""
+  const yourName = searchParams.get("yourName") || ""
 
   const HOURS_PER_YEAR = 2080
   const salaryInputType = searchParams.get("salaryType") === "hourly" ? "hourly" : "annual"
@@ -86,6 +87,7 @@ export function DemandLetterPage() {
     if (currentOffer) params.set("offer", String(currentOffer))
     if (companyName) params.set("companyName", companyName)
     if (companyRepresentative) params.set("companyRep", companyRepresentative)
+    if (yourName) params.set("yourName", yourName)
     return `/?${params.toString()}`
   }
 
@@ -178,6 +180,7 @@ export function DemandLetterPage() {
             monthsOfService={monthsOfService}
             companyName={companyName}
             companyRepresentative={companyRepresentative}
+            yourName={yourName}
           />
         </div>
       </div>
