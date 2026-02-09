@@ -9,9 +9,12 @@ const nextConfig = {
   ...(isGitHubPages ? {
     output: 'export',
     basePath: basePath || undefined,
+    assetPrefix: basePath || undefined,
     images: {
       unoptimized: true,
     },
+    // Ensure CSS and JS are loaded from correct paths
+    distDir: 'out',
   } : {}),
   // Ensure proper handling of static assets
   trailingSlash: false,

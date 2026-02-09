@@ -97,11 +97,11 @@ export function DemandLetterPage() {
         <div className="mb-6">
           <Button
             variant="ghost"
-            onClick={() => router.back()}
+            onClick={() => router.push(buildCalculatorUrl())}
             className="mb-4"
           >
             <ArrowLeft className="h-4 w-4 mr-2" />
-            Back to Results
+            Back to Calculator
           </Button>
           <div className="text-center mb-8">
             <h1 className="text-4xl font-bold tracking-tight mb-2">
