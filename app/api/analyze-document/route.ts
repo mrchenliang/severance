@@ -2,6 +2,56 @@ import { NextRequest, NextResponse } from "next/server"
 // @ts-ignore - pdf-parse doesn't have perfect TypeScript support
 import pdfParse from "pdf-parse"
 
+// Simple in-memory rate limiting (per server instance)
+// NOTE: This is best-effort protection and may not be perfect across all serverless instances,
+// but it will still significantly reduce abuse and spikes.
+const RATE_LIMIT_WINDOW_MS = 60_000 // 1 minute
+const RATE_LIMIT_MAX_REQUESTS = 10  // per IP per window
+
+type RateLimitEntry = {
+  count: number
+  windowStart: number
+}
+
+const ipRateLimits = new Map<string, RateLimitEntry>()
+
+function getClientIp(request: NextRequest): string {
+  const xForwardedFor = request.headers.get("x-forwarded-for")
+  if (xForwardedFor) {
+    // x-forwarded-for can contain multiple IPs, take the first one
+    return xForwardedFor.split(",")[0].trim()
+  }
+  // NextRequest.ip may be populated in some environments
+  // @ts-ignore: ip is not always present on NextRequest type
+  return (request as any).ip || "unknown"
+}
+
+function isRateLimited(ip: string): boolean {
+  const now = Date.now()
+  const existing = ipRateLimits.get(ip)
+
+  if (!existing) {
+    ipRateLimits.set(ip, { count: 1, windowStart: now })
+    return false
+  }
+
+  const elapsed = now - existing.windowStart
+
+  if (elapsed > RATE_LIMIT_WINDOW_MS) {
+    // Reset window
+    ipRateLimits.set(ip, { count: 1, windowStart: now })
+    return false
+  }
+
+  if (existing.count >= RATE_LIMIT_MAX_REQUESTS) {
+    return true
+  }
+
+  existing.count += 1
+  ipRateLimits.set(ip, existing)
+  return false
+}
+
 // PDF text extraction using pdf-parse library
 async function extractTextFromPDFBuffer(buffer: ArrayBuffer): Promise<string> {
   try {
@@ -35,6 +85,33 @@ async function extractTextFromPDFBuffer(buffer: ArrayBuffer): Promise<string> {
 
 export async function POST(request: NextRequest) {
   try {
+    // 1) Basic origin check to avoid abuse from other sites
+    const origin = request.headers.get("origin")
+    const allowedOrigins = [
+      "https://severance-checklist.vercel.app",
+      "http://localhost:3000",
+      "http://127.0.0.1:3000",
+    ]
+    if (origin && !allowedOrigins.includes(origin)) {
+      console.warn("Blocked request from disallowed origin:", origin)
+      return NextResponse.json(
+        { error: "Origin not allowed" },
+        { status: 403 }
+      )
+    }
+
+    // 2) Simple per-IP rate limiting
+    const ip = getClientIp(request)
+    if (isRateLimited(ip)) {
+      console.warn("Rate limit exceeded for IP:", ip)
+      return NextResponse.json(
+        {
+          error: "Too many requests. Please wait a bit and try again.",
+        },
+        { status: 429 }
+      )
+    }
+
     const contentType = request.headers.get('content-type') || ''
     let text: string
 
