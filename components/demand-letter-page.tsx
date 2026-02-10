@@ -66,7 +66,7 @@ export function DemandLetterPage() {
           <p className="text-muted-foreground mb-6">
             Please complete the calculator form first to generate your demand letter.
           </p>
-          <Button onClick={() => router.push("/")}>
+          <Button onClick={() => router.push("/calculator")}>
             Go to Calculator
           </Button>
         </div>

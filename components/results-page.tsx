@@ -177,7 +177,7 @@ export function ResultsPage() {
             <p className="text-center text-muted-foreground">
               Invalid or missing calculation data. Please go back and fill out the form.
             </p>
-            <Button onClick={() => router.push("/")} className="mt-4 w-full">
+            <Button onClick={() => router.push("/calculator")} className="mt-4 w-full">
               <ArrowLeft className="mr-2 h-4 w-4" />
               Back to Calculator
             </Button>
@@ -191,7 +191,7 @@ export function ResultsPage() {
     <div className="min-h-screen bg-gradient-to-b from-background to-muted/20">
       <div className="container mx-auto max-w-6xl py-8 px-4">
         <div className="mb-6 flex items-center justify-between">
-          <Button variant="ghost" onClick={() => router.push("/")}>
+          <Button variant="ghost" onClick={() => router.push("/calculator")}>
             <ArrowLeft className="mr-2 h-4 w-4" />
             Back to Calculator
           </Button>
