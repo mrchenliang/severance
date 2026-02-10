@@ -8,6 +8,7 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group"
+import { Slider } from "@/components/ui/slider"
 import { ArrowLeft, Edit2 } from "lucide-react"
 import { calculateSeverance } from "@/lib/calculations"
 import { lawyerPricingByProvince } from "@/lib/lawyer-pricing"
@@ -60,6 +61,8 @@ export function ResultsPage() {
   const router = useRouter()
   const [isEditing, setIsEditing] = useState(false)
   const [salaryInputType, setSalaryInputType] = useState<"annual" | "hourly">("annual")
+  const [offerInputType, setOfferInputType] = useState<"dollars" | "weeks">("dollars")
+  const [offerWeeks, setOfferWeeks] = useState<number>(0)
   
   // Lawyer customization settings
   const [customHours, setCustomHours] = useState<number | undefined>(undefined)
@@ -98,10 +101,33 @@ export function ResultsPage() {
 
   const HOURS_PER_YEAR = 2080
 
+  // Helper function to format currency
+  function formatCurrency(amount: number): string {
+    const rounded = Math.round(amount)
+    return new Intl.NumberFormat("en-CA", {
+      style: "currency",
+      currency: "CAD",
+      minimumFractionDigits: 0,
+      maximumFractionDigits: 0,
+    }).format(rounded)
+  }
+
   // Calculate results - handle hourly rate conversion if needed
   const annualSalaryForCalc = formData.annualSalary && salaryInputType === "hourly" 
     ? formData.annualSalary * HOURS_PER_YEAR 
     : formData.annualSalary
+
+  // Initialize offerWeeks from currentOffer if available
+  useEffect(() => {
+    if (formData.currentOffer && annualSalaryForCalc && offerWeeks === 0 && annualSalaryForCalc > 0) {
+      const weeklySalary = annualSalaryForCalc / 52
+      const weeks = Math.round(formData.currentOffer / weeklySalary)
+      if (weeks > 0 && weeks <= 104) {
+        setOfferWeeks(weeks)
+      }
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [formData.currentOffer, annualSalaryForCalc])
 
   const results = formData.province && formData.ageRange && formData.jobPosition && annualSalaryForCalc && annualSalaryForCalc > 0
     ? calculateSeverance({
@@ -334,17 +360,119 @@ export function ResultsPage() {
                   </div>
 
                   {/* Current Offer */}
-                  <div className="space-y-2">
-                    <Label htmlFor="offer">Current Severance Offer (CAD) - Optional</Label>
-                    <Input
-                      id="offer"
-                      type="number"
-                      min="0"
-                      step="1"
-                      value={formData.currentOffer || ""}
-                      onChange={(e) => handleFieldChange("currentOffer", e.target.value === "" ? undefined : parseFloat(e.target.value))}
-                      placeholder="e.g., 15000"
-                    />
+                  <div className="space-y-4">
+                    <div className="space-y-2">
+                      <Label>Current Severance Offer - Optional</Label>
+                      <div className="flex gap-4 mb-2">
+                        <RadioGroup
+                          value={offerInputType}
+                          onValueChange={(value) => {
+                            setOfferInputType(value as "dollars" | "weeks")
+                            // Convert between weeks and dollars when switching
+                            if (value === "weeks" && formData.currentOffer && annualSalaryForCalc) {
+                              const weeklySalary = annualSalaryForCalc / 52
+                              const weeks = Math.round(formData.currentOffer / weeklySalary)
+                              setOfferWeeks(weeks)
+                            } else if (value === "dollars" && offerWeeks > 0 && annualSalaryForCalc) {
+                              const weeklySalary = annualSalaryForCalc / 52
+                              handleFieldChange("currentOffer", Math.round(offerWeeks * weeklySalary))
+                            }
+                          }}
+                          className="flex gap-6"
+                        >
+                          <div className="flex items-center space-x-2">
+                            <RadioGroupItem value="dollars" id="offer-dollars" />
+                            <Label htmlFor="offer-dollars" className="cursor-pointer text-sm">
+                              Dollar Amount
+                            </Label>
+                          </div>
+                          <div className="flex items-center space-x-2">
+                            <RadioGroupItem value="weeks" id="offer-weeks" />
+                            <Label htmlFor="offer-weeks" className="cursor-pointer text-sm">
+                              Package in Weeks
+                            </Label>
+                          </div>
+                        </RadioGroup>
+                      </div>
+                    </div>
+
+                    {offerInputType === "dollars" ? (
+                      <div className="space-y-2">
+                        <Label htmlFor="offer">Amount (CAD)</Label>
+                        <Input
+                          id="offer"
+                          type="number"
+                          min="0"
+                          step="1"
+                          value={formData.currentOffer || ""}
+                          onChange={(e) => handleFieldChange("currentOffer", e.target.value === "" ? undefined : parseFloat(e.target.value))}
+                          placeholder="e.g., 15000"
+                        />
+                      </div>
+                    ) : (
+                      <div className="space-y-4">
+                        <div className="space-y-2">
+                          <div className="flex items-center justify-between">
+                            <Label htmlFor="offer-weeks-slider">Weeks</Label>
+                            <span className="text-lg font-semibold">
+                              {offerWeeks} {offerWeeks === 1 ? "week" : "weeks"}
+                              {annualSalaryForCalc && offerWeeks > 0 && (
+                                <span className="text-sm text-muted-foreground ml-2 font-normal">
+                                  ({formatCurrency((annualSalaryForCalc / 52) * offerWeeks)})
+                                </span>
+                              )}
+                            </span>
+                          </div>
+                          <Slider
+                            id="offer-weeks-slider"
+                            min={0}
+                            max={104}
+                            step={1}
+                            value={[offerWeeks]}
+                            onValueChange={(value) => {
+                              const weeks = value[0]
+                              setOfferWeeks(weeks)
+                              if (annualSalaryForCalc && weeks > 0) {
+                                const weeklySalary = annualSalaryForCalc / 52
+                                handleFieldChange("currentOffer", Math.round(weeks * weeklySalary))
+                              } else {
+                                handleFieldChange("currentOffer", undefined)
+                              }
+                            }}
+                            className="w-full"
+                          />
+                          <div className="flex justify-between text-xs text-muted-foreground px-1">
+                            <span>0</span>
+                            <span>26</span>
+                            <span>52</span>
+                            <span>78</span>
+                            <span>104</span>
+                          </div>
+                        </div>
+                        <div className="space-y-2">
+                          <Label htmlFor="offer-weeks-input">Or enter manually</Label>
+                          <Input
+                            id="offer-weeks-input"
+                            type="number"
+                            min="0"
+                            max="104"
+                            step="1"
+                            value={offerWeeks || ""}
+                            onChange={(e) => {
+                              const weeks = parseInt(e.target.value) || 0
+                              setOfferWeeks(weeks)
+                              if (annualSalaryForCalc && weeks > 0) {
+                                const weeklySalary = annualSalaryForCalc / 52
+                                handleFieldChange("currentOffer", Math.round(weeks * weeklySalary))
+                              } else {
+                                handleFieldChange("currentOffer", undefined)
+                              }
+                            }}
+                            placeholder="Enter weeks"
+                          />
+                        </div>
+                      </div>
+                    )}
                   </div>
 
                   {/* Employer Payroll (Ontario) */}
@@ -391,6 +519,17 @@ export function ResultsPage() {
             onCustomContingencyChange={setCustomContingencyPercentage}
             onCustomFlatFeeChange={setCustomFlatFee}
             onIncludeHSTChange={setIncludeHST}
+            onCurrentOfferChange={(offer) => {
+              handleFieldChange("currentOffer", offer)
+              // Update URL params when offer changes
+              const params = new URLSearchParams(window.location.search)
+              if (offer) {
+                params.set("offer", String(offer))
+              } else {
+                params.delete("offer")
+              }
+              router.replace(`/results?${params.toString()}`, { scroll: false })
+            }}
           />
         )}
       </div>

@@ -8,6 +8,7 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group"
+import { Slider } from "@/components/ui/slider"
 import { calculateSeverance } from "@/lib/calculations"
 import { lawyerPricingByProvince } from "@/lib/lawyer-pricing"
 import type { CalculatorInput, Province, AgeRange, JobPosition } from "@/lib/types"
@@ -72,6 +73,8 @@ export function SeveranceCalculator() {
   // Initialize from URL params if available
   const initialSalaryInputType = searchParams.get("salaryType") === "hourly" ? "hourly" : "annual"
   const [salaryInputType, setSalaryInputType] = useState<"annual" | "hourly">(initialSalaryInputType)
+  const [offerInputType, setOfferInputType] = useState<"dollars" | "weeks">("dollars")
+  const [offerWeeks, setOfferWeeks] = useState<number>(0)
 
   const [formData, setFormData] = useState<Partial<CalculatorInput>>(() => {
     const province = (searchParams.get("province") || "ON") as Province
@@ -112,6 +115,18 @@ export function SeveranceCalculator() {
 
   const [companyName, setCompanyName] = useState<string>(searchParams.get("companyName") || "")
   const [companyRepresentative, setCompanyRepresentative] = useState<string>(searchParams.get("companyRep") || "")
+
+  // Initialize offerWeeks from currentOffer if available
+  useEffect(() => {
+    if (formData.currentOffer && formData.annualSalary && offerWeeks === 0 && formData.annualSalary > 0) {
+      const weeklySalary = formData.annualSalary / 52
+      const weeks = Math.round(formData.currentOffer / weeklySalary)
+      if (weeks > 0 && weeks <= 104) {
+        setOfferWeeks(weeks)
+      }
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [formData.currentOffer, formData.annualSalary])
 
   const [errors, setErrors] = useState<Record<string, string>>({})
   const [touched, setTouched] = useState<Record<string, boolean>>({})
@@ -508,24 +523,141 @@ export function SeveranceCalculator() {
                 )}
 
                 {/* Current Offer */}
-                <div className="space-y-2">
-                  <Label htmlFor="offer">
-                    Current Severance Offer from Employer (CAD) - Optional
-                  </Label>
-                  <Input
-                    id="offer"
-                    type="number"
-                    min="0"
-                    step="1000"
-                    value={formData.currentOffer || ""}
-                    onChange={(e) =>
-                      setFormData({
-                        ...formData,
-                        currentOffer: parseFloat(e.target.value) || undefined,
-                      })
-                    }
-                    placeholder="e.g., 15000"
-                  />
+                <div className="space-y-4">
+                  <div className="space-y-2">
+                    <Label>
+                      Current Severance Offer from Employer - Optional
+                    </Label>
+                    <div className="flex gap-4 mb-2">
+                      <RadioGroup
+                        value={offerInputType}
+                        onValueChange={(value) => {
+                          setOfferInputType(value as "dollars" | "weeks")
+                          // Convert between weeks and dollars when switching
+                          if (value === "weeks" && formData.currentOffer && formData.annualSalary) {
+                            const weeklySalary = formData.annualSalary / 52
+                            const weeks = Math.round(formData.currentOffer / weeklySalary)
+                            setOfferWeeks(weeks)
+                          } else if (value === "dollars" && offerWeeks > 0 && formData.annualSalary) {
+                            const weeklySalary = formData.annualSalary / 52
+                            setFormData({
+                              ...formData,
+                              currentOffer: Math.round(offerWeeks * weeklySalary),
+                            })
+                          }
+                        }}
+                        className="flex gap-6"
+                      >
+                        <div className="flex items-center space-x-2">
+                          <RadioGroupItem value="dollars" id="offer-dollars" />
+                          <Label htmlFor="offer-dollars" className="cursor-pointer text-sm">
+                            Dollar Amount
+                          </Label>
+                        </div>
+                        <div className="flex items-center space-x-2">
+                          <RadioGroupItem value="weeks" id="offer-weeks" />
+                          <Label htmlFor="offer-weeks" className="cursor-pointer text-sm">
+                            Package in Weeks
+                          </Label>
+                        </div>
+                      </RadioGroup>
+                    </div>
+                  </div>
+
+                  {offerInputType === "dollars" ? (
+                    <div className="space-y-2">
+                      <Label htmlFor="offer">Amount (CAD)</Label>
+                      <Input
+                        id="offer"
+                        type="number"
+                        min="0"
+                        step="1000"
+                        value={formData.currentOffer || ""}
+                        onChange={(e) =>
+                          setFormData({
+                            ...formData,
+                            currentOffer: parseFloat(e.target.value) || undefined,
+                          })
+                        }
+                        placeholder="e.g., 15000"
+                      />
+                    </div>
+                  ) : (
+                    <div className="space-y-4">
+                      <div className="space-y-2">
+                        <div className="flex items-center justify-between">
+                          <Label htmlFor="offer-weeks-slider">Weeks</Label>
+                          <span className="text-lg font-semibold">
+                            {offerWeeks} {offerWeeks === 1 ? "week" : "weeks"}
+                            {formData.annualSalary && offerWeeks > 0 && (
+                              <span className="text-sm text-muted-foreground ml-2 font-normal">
+                                ({formatCurrency((formData.annualSalary / 52) * offerWeeks)})
+                              </span>
+                            )}
+                          </span>
+                        </div>
+                        <Slider
+                          id="offer-weeks-slider"
+                          min={0}
+                          max={104}
+                          step={1}
+                          value={[offerWeeks]}
+                          onValueChange={(value) => {
+                            const weeks = value[0]
+                            setOfferWeeks(weeks)
+                            if (formData.annualSalary && weeks > 0) {
+                              const weeklySalary = formData.annualSalary / 52
+                              setFormData({
+                                ...formData,
+                                currentOffer: Math.round(weeks * weeklySalary),
+                              })
+                            } else {
+                              setFormData({
+                                ...formData,
+                                currentOffer: undefined,
+                              })
+                            }
+                          }}
+                          className="w-full"
+                        />
+                        <div className="flex justify-between text-xs text-muted-foreground px-1">
+                          <span>0</span>
+                          <span>26</span>
+                          <span>52</span>
+                          <span>78</span>
+                          <span>104</span>
+                        </div>
+                      </div>
+                      <div className="space-y-2">
+                        <Label htmlFor="offer-weeks-input">Or enter manually</Label>
+                        <Input
+                          id="offer-weeks-input"
+                          type="number"
+                          min="0"
+                          max="104"
+                          step="1"
+                          value={offerWeeks || ""}
+                          onChange={(e) => {
+                            const weeks = parseInt(e.target.value) || 0
+                            setOfferWeeks(weeks)
+                            if (formData.annualSalary && weeks > 0) {
+                              const weeklySalary = formData.annualSalary / 52
+                              setFormData({
+                                ...formData,
+                                currentOffer: Math.round(weeks * weeklySalary),
+                              })
+                            } else {
+                              setFormData({
+                                ...formData,
+                                currentOffer: undefined,
+                              })
+                            }
+                          }}
+                          placeholder="Enter weeks"
+                        />
+                      </div>
+                    </div>
+                  )}
                 </div>
 
                 {/* Company Information - Optional */}

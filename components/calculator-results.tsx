@@ -1,12 +1,13 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { useRouter } from "next/navigation"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group"
+import { Slider } from "@/components/ui/slider"
 import type { SeveranceResult, LawyerPricing, Province } from "@/lib/types"
 import { AlertCircle, TrendingUp, TrendingDown, DollarSign, CheckCircle2, Calculator, Info, ChevronDown, ChevronUp, FileText } from "lucide-react"
 import { analyzeLawyerCosts } from "@/lib/lawyer-cost-analysis"
@@ -33,6 +34,7 @@ interface CalculatorResultsProps {
   onCustomContingencyChange?: (percentage: number | undefined) => void
   onCustomFlatFeeChange?: (fee: number | undefined) => void
   onIncludeHSTChange?: (include: boolean) => void
+  onCurrentOfferChange?: (offer: number | undefined) => void
 }
 
 function formatCurrency(amount: number): string {
@@ -126,10 +128,32 @@ export function CalculatorResults({
   onCustomContingencyChange,
   onCustomFlatFeeChange,
   onIncludeHSTChange,
+  onCurrentOfferChange,
 }: CalculatorResultsProps) {
   const router = useRouter()
   const [expandedOption, setExpandedOption] = useState<string | null>(null)
   const [isDecisionGuideExpanded, setIsDecisionGuideExpanded] = useState(false)
+  const [offerInputType, setOfferInputType] = useState<"dollars" | "weeks">("dollars")
+  const [offerWeeks, setOfferWeeks] = useState<number>(() => {
+    if (currentOffer && annualSalary && annualSalary > 0) {
+      const weeklySalary = annualSalary / 52
+      return Math.round(currentOffer / weeklySalary)
+    }
+    return 0
+  })
+
+  // Update offerWeeks when currentOffer or annualSalary changes
+  useEffect(() => {
+    if (currentOffer && annualSalary && annualSalary > 0) {
+      const weeklySalary = annualSalary / 52
+      const weeks = Math.round(currentOffer / weeklySalary)
+      if (weeks > 0 && weeks <= 104) {
+        setOfferWeeks(weeks)
+      }
+    } else {
+      setOfferWeeks(0)
+    }
+  }, [currentOffer, annualSalary])
 
   const { statutoryMinimum, statutorySeverance, commonLawRange, recommendedRange } = results
 
@@ -295,17 +319,142 @@ export function CalculatorResults({
           </div>
 
           {/* Current Offer Comparison */}
-          {currentOffer !== undefined && (
-            <div className="rounded-lg border p-4">
-              <h3 className="font-semibold mb-2 flex items-center gap-2">
-                {gap && gap > 0 ? (
-                  <TrendingDown className="h-5 w-5 text-destructive" />
+          <div className="rounded-lg border p-4">
+            <h3 className="font-semibold mb-4 flex items-center gap-2">
+              {currentOffer !== undefined && gap && gap > 0 ? (
+                <TrendingDown className="h-5 w-5 text-destructive" />
+              ) : currentOffer !== undefined ? (
+                <TrendingUp className="h-5 w-5 text-green-600" />
+              ) : null}
+              {currentOffer !== undefined ? "Comparison with Current Offer" : "Enter Your Current Offer"}
+            </h3>
+            
+            {onCurrentOfferChange && annualSalary && (
+              <div className="space-y-4 mb-4">
+                <div className="space-y-2">
+                  <div className="flex gap-4">
+                    <RadioGroup
+                      value={offerInputType}
+                      onValueChange={(value) => {
+                        setOfferInputType(value as "dollars" | "weeks")
+                        // Convert between weeks and dollars when switching
+                        if (value === "weeks" && currentOffer) {
+                          const weeklySalary = annualSalary / 52
+                          const weeks = Math.round(currentOffer / weeklySalary)
+                          setOfferWeeks(weeks)
+                        } else if (value === "dollars" && offerWeeks > 0) {
+                          const weeklySalary = annualSalary / 52
+                          const newOffer = Math.round(offerWeeks * weeklySalary)
+                          onCurrentOfferChange(newOffer)
+                        }
+                      }}
+                      className="flex gap-6"
+                    >
+                      <div className="flex items-center space-x-2">
+                        <RadioGroupItem value="dollars" id="offer-dollars-results" />
+                        <Label htmlFor="offer-dollars-results" className="cursor-pointer text-sm">
+                          Dollar Amount
+                        </Label>
+                      </div>
+                      <div className="flex items-center space-x-2">
+                        <RadioGroupItem value="weeks" id="offer-weeks-results" />
+                        <Label htmlFor="offer-weeks-results" className="cursor-pointer text-sm">
+                          Package in Weeks
+                        </Label>
+                      </div>
+                    </RadioGroup>
+                  </div>
+                </div>
+
+                {offerInputType === "dollars" ? (
+                  <div className="space-y-2">
+                    <Label htmlFor="offer-results">Amount (CAD)</Label>
+                    <Input
+                      id="offer-results"
+                      type="number"
+                      min="0"
+                      step="1000"
+                      value={currentOffer || ""}
+                      onChange={(e) => {
+                        const value = e.target.value === "" ? undefined : parseFloat(e.target.value)
+                        onCurrentOfferChange(value)
+                        if (value && annualSalary) {
+                          const weeklySalary = annualSalary / 52
+                          setOfferWeeks(Math.round(value / weeklySalary))
+                        }
+                      }}
+                      placeholder="e.g., 15000"
+                    />
+                  </div>
                 ) : (
-                  <TrendingUp className="h-5 w-5 text-green-600" />
+                  <div className="space-y-4">
+                    <div className="space-y-2">
+                      <div className="flex items-center justify-between">
+                        <Label htmlFor="offer-weeks-slider-results">Weeks</Label>
+                        <span className="text-lg font-semibold">
+                          {offerWeeks} {offerWeeks === 1 ? "week" : "weeks"}
+                          {annualSalary && offerWeeks > 0 && (
+                            <span className="text-sm text-muted-foreground ml-2 font-normal">
+                              ({formatCurrency((annualSalary / 52) * offerWeeks)})
+                            </span>
+                          )}
+                        </span>
+                      </div>
+                      <Slider
+                        id="offer-weeks-slider-results"
+                        min={0}
+                        max={104}
+                        step={1}
+                        value={[offerWeeks]}
+                        onValueChange={(value) => {
+                          const weeks = value[0]
+                          setOfferWeeks(weeks)
+                          if (annualSalary && weeks > 0) {
+                            const weeklySalary = annualSalary / 52
+                            onCurrentOfferChange(Math.round(weeks * weeklySalary))
+                          } else {
+                            onCurrentOfferChange(undefined)
+                          }
+                        }}
+                        className="w-full"
+                      />
+                      <div className="flex justify-between text-xs text-muted-foreground px-1">
+                        <span>0</span>
+                        <span>26</span>
+                        <span>52</span>
+                        <span>78</span>
+                        <span>104</span>
+                      </div>
+                    </div>
+                    <div className="space-y-2">
+                      <Label htmlFor="offer-weeks-input-results">Or enter manually</Label>
+                      <Input
+                        id="offer-weeks-input-results"
+                        type="number"
+                        min="0"
+                        max="104"
+                        step="1"
+                        value={offerWeeks || ""}
+                        onChange={(e) => {
+                          const weeks = parseInt(e.target.value) || 0
+                          setOfferWeeks(weeks)
+                          if (annualSalary && weeks > 0) {
+                            const weeklySalary = annualSalary / 52
+                            onCurrentOfferChange(Math.round(weeks * weeklySalary))
+                          } else {
+                            onCurrentOfferChange(undefined)
+                          }
+                        }}
+                        placeholder="Enter weeks"
+                      />
+                    </div>
+                  </div>
                 )}
-                Comparison with Current Offer
-              </h3>
-              <div className="space-y-3">
+              </div>
+            )}
+
+            {currentOffer !== undefined && (
+              <div className="space-y-3 border-t pt-4">
                 <div className="flex justify-between items-center">
                   <span className="text-sm">Your Offer:</span>
                   <span className="font-semibold">{formatCurrency(currentOffer)}</span>
@@ -339,8 +488,8 @@ export function CalculatorResults({
                   </div>
                 )}
               </div>
-            </div>
-          )}
+            )}
+          </div>
         </CardContent>
       </Card>
 
